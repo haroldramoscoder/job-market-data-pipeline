@@ -1,0 +1,21 @@
+# Virtual environments
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Build / packaging
+*.egg-info/
+dist/
+build/
+
+# Output files
+output/
+*.xlsx
+*.log
+*.csv
+
+# OS
+.DS_Store
+Thumbs.db
