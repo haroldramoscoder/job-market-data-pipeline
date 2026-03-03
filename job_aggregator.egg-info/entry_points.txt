@@ -1,0 +1,2 @@
+[console_scripts]
+job-aggregator = job_aggregator.main:main

@@ -1,4 +1,5 @@
 import requests
+import logging
 
 MUSE_BASE_URL = "https://www.themuse.com/api/public/jobs?page={}"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
@@ -7,7 +8,8 @@ def fetch_muse_paginated(max_pages):
     results = []
 
     for page in range(1, max_pages + 1):
-        print(f"Fetching The Muse page {page}...")
+        logger = logging.getLogger(__name__)
+        logger.debug(f"Fetching The Muse page {page}...")
         response = requests.get(MUSE_BASE_URL.format(page), headers=HEADERS)
 
         if response.status_code != 200:

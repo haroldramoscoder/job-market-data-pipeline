@@ -30,4 +30,24 @@ def parse_arguments():
         help="Disable keyword expansion"
     )
 
+    parser.add_argument(
+        "--format",
+        choices=["excel", "csv", "json"],
+        default="excel",
+        help="Output format (excel, csv, json)"
+    )
+
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose (debug) logging"
+    )
+
+    parser.add_argument(
+        "--logfile",
+        type=str,
+        default=None,
+        help="Optional log file path"
+    )
+
     return parser.parse_args()
