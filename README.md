@@ -99,6 +99,7 @@ Jobs Posted in Last 7 Days: 48
 Output files are saved in the output/ directory.
 
 ## Project Structure
+```
 job-listing-automation/
 │
 ├── job_aggregator/
@@ -123,6 +124,7 @@ job-listing-automation/
 ├── setup.py
 ├── README.md
 └── .gitignore
+```
 
 ## Future Improvements
 
@@ -136,3 +138,8 @@ job-listing-automation/
 ## License
 
 MIT License
+
+## Author
+
+Harold Ramos
+Computer Engineering Student
