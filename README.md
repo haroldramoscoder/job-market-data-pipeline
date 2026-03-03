@@ -1,4 +1,5 @@
 # Job Aggregator CLI
+![CI](https://github.com/haroldramoscoder/job-listing-automation/actions/workflows/python.yml/badge.svg)
 
 A multi-source job aggregation command-line tool that fetches, filters, deduplicates, and analyzes job listings from multiple public job APIs.
 
