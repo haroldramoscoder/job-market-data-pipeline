@@ -1,4 +1,7 @@
 import pandas as pd
+from collections import Counter
+import re
+from job_aggregator.skills import SKILLS
 
 def print_summary(df):
     if df.empty:
@@ -33,3 +36,62 @@ def print_summary(df):
     print(f"Jobs Posted in Last 7 Days: {len(recent_jobs)}")
 
     print("="*50 + "\n")
+
+def extract_skills(text):
+    text = text.lower()
+    found_skills = []
+
+    for skill in SKILLS:
+
+        # create word-boundary regex
+        pattern = r"\b" + re.escape(skill) + r"\b"
+
+        if re.search(pattern, text):
+            found_skills.append(skill)
+
+    return found_skills
+
+def analyze_skills(df):
+    """
+    Analyze most common skills across jobs.
+    Uses Title + Tags + Description if available.
+    """
+
+    skill_counter = Counter()
+
+    for _, row in df.iterrows():
+
+        combined_text = ""
+
+        if "Title" in df.columns and pd.notna(row["Title"]):
+            combined_text += row["Title"] + " "
+
+        if "Tags" in df.columns and pd.notna(row["Tags"]):
+            combined_text += str(row["Tags"]) + " "
+
+        if "Description" in df.columns and pd.notna(row["Description"]):
+            combined_text += row["Description"]
+
+        if combined_text:
+            skills = extract_skills(combined_text)
+            skill_counter.update(skills)
+
+    return skill_counter
+
+def print_skill_summary(df):
+
+    skill_counts = analyze_skills(df)
+
+    if not skill_counts:
+        print("\nNo job descriptions available for skill analysis.")
+        return
+
+    print("\nTop Skills in Job Market")
+    print("-" * 30)
+
+    for skill, count in skill_counts.most_common(10):
+
+        if count < 2:
+            continue
+
+        print(f"{skill}: {count}")

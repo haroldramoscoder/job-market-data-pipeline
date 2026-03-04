@@ -10,6 +10,8 @@ from job_aggregator.sources.remotive import fetch_remotive, process_remotive
 from job_aggregator.sources.arbeitnow import fetch_arbeitnow, process_arbeitnow
 from job_aggregator.sources.muse import fetch_muse_paginated, process_muse
 from job_aggregator.utils import print_summary
+from job_aggregator.utils import print_skill_summary
+from job_aggregator.utils import extract_skills
 
 
 # ===============================
@@ -64,18 +66,57 @@ def save_output(jobs, output_format, days_filter):
     df = pd.DataFrame(jobs)
 
     if not df.empty:
+
+        # -----------------------------
+        # Detect skills per job
+        # -----------------------------
+        def detect_skills(row):
+            text = ""
+
+            if "Title" in df.columns and pd.notna(row.get("Title")):
+                text += row["Title"] + " "
+
+            if "Tags" in df.columns and pd.notna(row.get("Tags")):
+                text += str(row["Tags"]) + " "
+
+            if "Description" in df.columns and pd.notna(row.get("Description")):
+                text += row["Description"]
+
+            skills = extract_skills(text)
+
+            return "|".join(skills)
+
+        df["Skills"] = df.apply(detect_skills, axis=1)
+
+        # -----------------------------
+        # Date cleaning
+        # -----------------------------
         df["Date Posted"] = pd.to_datetime(
             df["Date Posted"], errors="coerce"
         ).dt.tz_localize(None)
 
+        # -----------------------------
+        # Freshness filter
+        # -----------------------------
         if days_filter:
             cutoff = datetime.now() - timedelta(days=days_filter)
             df = df[df["Date Posted"] >= cutoff]
             print(f"\nFiltered to last {days_filter} days.")
 
+        # -----------------------------
+        # Sorting
+        # -----------------------------
         df = df.sort_values(by="Date Posted", ascending=False)
-        print_summary(df)
 
+        # -----------------------------
+        # Console summaries
+        # -----------------------------
+        print_summary(df)
+        print_skill_summary(df)
+
+    # -----------------------------
+    # Export
+    # -----------------------------
     if output_format == "excel":
         filename = f"output/jobs_{timestamp}.xlsx"
         df.to_excel(filename, index=False)

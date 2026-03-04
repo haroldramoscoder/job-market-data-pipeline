@@ -19,3 +19,9 @@ output/
 # OS
 .DS_Store
 Thumbs.db
+
+# Test / coverage files
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
