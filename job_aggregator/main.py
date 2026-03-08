@@ -9,12 +9,8 @@ from job_aggregator.sources.remoteok import fetch_remoteok, process_remoteok
 from job_aggregator.sources.remotive import fetch_remotive, process_remotive
 from job_aggregator.sources.arbeitnow import fetch_arbeitnow, process_arbeitnow
 from job_aggregator.sources.muse import fetch_muse_paginated, process_muse
-from job_aggregator.utils import print_summary
-from job_aggregator.utils import print_skill_summary
-from job_aggregator.utils import extract_skills
-from job_aggregator.utils import save_raw_data
-from job_aggregator.utils import load_raw_data
-from job_aggregator.utils import save_processed_dataset
+from job_aggregator.utils import print_summary, print_skill_summary, extract_skills, save_raw_data, load_raw_data, save_processed_dataset
+from job_aggregator.cleaning import clean_jobs_dataframe
 
 
 # ===============================
@@ -74,6 +70,8 @@ def save_output(jobs, output_format, days_filter):
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     df = pd.DataFrame(jobs)
+
+    df = clean_jobs_dataframe(df)
 
     if not df.empty:
 
