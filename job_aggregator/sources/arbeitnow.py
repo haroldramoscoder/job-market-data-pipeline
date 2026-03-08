@@ -3,8 +3,13 @@ import requests
 ARBEITNOW_URL = "https://www.arbeitnow.com/api/job-board-api"
 
 def fetch_arbeitnow():
-    response = requests.get(ARBEITNOW_URL)
-    return response.json().get("data", []) if response.status_code == 200 else []
+    try:
+        response = requests.get(ARBEITNOW_URL, timeout=10)
+        response.raise_for_status()
+        return response.json().get("data", [])
+    except requests.RequestException as e:
+        print(f"Arbeitnow API error: {e}")
+        return []
 
 def process_arbeitnow(jobs, match_keywords, keywords):
     results = []
@@ -17,6 +22,8 @@ def process_arbeitnow(jobs, match_keywords, keywords):
                 "Company": job.get("company_name"),
                 "Location": job.get("location"),
                 "Date Posted": job.get("created_at"),
-                "URL": job.get("url")
+                "URL": job.get("url"),
+                "Description": job.get("description"),
+                "Tags": job.get("tags")
             })
     return results

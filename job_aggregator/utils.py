@@ -66,8 +66,13 @@ def analyze_skills(df):
         if "Title" in df.columns and pd.notna(row["Title"]):
             combined_text += row["Title"] + " "
 
-        if "Tags" in df.columns and pd.notna(row["Tags"]):
-            combined_text += str(row["Tags"]) + " "
+        tags = row.get("Tags")
+
+        if tags:
+            if isinstance(tags, list):
+                combined_text += " ".join(tags) + " "
+            else:
+                combined_text += str(tags) + " "
 
         if "Description" in df.columns and pd.notna(row["Description"]):
             combined_text += row["Description"]

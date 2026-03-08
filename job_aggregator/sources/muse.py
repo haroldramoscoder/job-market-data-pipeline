@@ -10,7 +10,16 @@ def fetch_muse_paginated(max_pages):
     for page in range(1, max_pages + 1):
         logger = logging.getLogger(__name__)
         logger.debug(f"Fetching The Muse page {page}...")
-        response = requests.get(MUSE_BASE_URL.format(page), headers=HEADERS)
+        try:
+            response = requests.get(
+                MUSE_BASE_URL.format(page),
+                headers=HEADERS,
+                timeout=10
+            )
+            response.raise_for_status()
+        except requests.RequestException as e:
+            print(f"TheMuse API error on page {page}: {e}")
+            break
 
         if response.status_code != 200:
             break
@@ -34,11 +43,11 @@ def process_muse(jobs, match_keywords, keywords):
                 "Source": "TheMuse",
                 "Title": job.get("name"),
                 "Company": job.get("company", {}).get("name"),
-                "Location": ", ".join(
-                    [loc["name"] for loc in job.get("locations", [])]
-                ),
+                "Location": ", ".join([loc["name"] for loc in job.get("locations", [])]),
                 "Date Posted": job.get("publication_date"),
-                "URL": job.get("refs", {}).get("landing_page")
+                "URL": job.get("refs", {}).get("landing_page"),
+                "Description": job.get("contents"),
+                "Tags": None
             })
 
     return results

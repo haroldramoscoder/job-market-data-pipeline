@@ -76,8 +76,13 @@ def save_output(jobs, output_format, days_filter):
             if "Title" in df.columns and pd.notna(row.get("Title")):
                 text += row["Title"] + " "
 
-            if "Tags" in df.columns and pd.notna(row.get("Tags")):
-                text += str(row["Tags"]) + " "
+            tags = row.get("Tags")
+
+            if tags:
+                if isinstance(tags, list):
+                    text += " ".join(tags) + " "
+                else:
+                    text += str(tags) + " "
 
             if "Description" in df.columns and pd.notna(row.get("Description")):
                 text += row["Description"]
