@@ -1,35 +1,55 @@
 import aiohttp
 import asyncio
+import logging
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 
+logger = logging.getLogger(__name__)
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+)
 async def fetch_json(session, url, headers=None):
     """
-    Fetch JSON asynchronously with timeout and error handling.
+    Fetch JSON asynchronously with retries and exponential backoff.
     """
 
     try:
         async with session.get(url, headers=headers, timeout=10) as response:
+
             response.raise_for_status()
+
             return await response.json()
 
     except Exception as e:
-        print(f"Async fetch error: {e}")
-        return None
+
+        logger.warning(f"Request failed for {url}: {e}")
+
+        raise
 
 
 async def fetch_all(requests):
     """
-    Fetch multiple API endpoints concurrently.
+    Fetch multiple API endpoints concurrently with rate limiting.
     """
 
-    async with aiohttp.ClientSession() as session:
+    connector = aiohttp.TCPConnector(limit=5)
+
+    timeout = aiohttp.ClientTimeout(total=20)
+
+    async with aiohttp.ClientSession(
+        connector=connector,
+        timeout=timeout
+    ) as session:
 
         tasks = [
             fetch_json(session, url, headers)
             for url, headers in requests
         ]
 
-        results = await asyncio.gather(*tasks)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
     return results
 
@@ -47,7 +67,7 @@ async def fetch_job_sources():
     results = await fetch_all(requests)
 
     return {
-        "remoteok": results[0],
-        "remotive": results[1],
-        "arbeitnow": results[2]
+        "remoteok": results[0] if not isinstance(results[0], Exception) else None,
+        "remotive": results[1] if not isinstance(results[1], Exception) else None,
+        "arbeitnow": results[2] if not isinstance(results[2], Exception) else None,
     }
