@@ -11,6 +11,8 @@ from job_aggregator.sources.arbeitnow import fetch_arbeitnow, process_arbeitnow
 from job_aggregator.sources.muse import fetch_muse_paginated, process_muse
 from job_aggregator.utils import print_summary, print_skill_summary, extract_skills, save_raw_data, load_raw_data, save_processed_dataset
 from job_aggregator.cleaning import clean_jobs_dataframe
+import asyncio
+from job_aggregator.async_fetcher import fetch_job_sources
 
 
 # ===============================
@@ -210,21 +212,31 @@ def main():
 
     else:
 
-        remoteok_data = fetch_remoteok()
+        print("\nFetching APIs asynchronously...")
+
+        api_results = asyncio.run(fetch_job_sources())
+
+        # ---- RemoteOK ----
+        remoteok_data = api_results.get("remoteok") or []
         save_raw_data(remoteok_data, "remoteok")
         all_jobs += process_remoteok(remoteok_data, match_keywords, KEYWORDS)
         logger.info("RemoteOK processed")
 
-        remotive_data = fetch_remotive()
+        # ---- Remotive ----
+        remotive_response = api_results.get("remotive") or {}
+        remotive_data = remotive_response.get("jobs", [])
         save_raw_data(remotive_data, "remotive")
         all_jobs += process_remotive(remotive_data, match_keywords, KEYWORDS)
         logger.info("Remotive processed")
 
-        arbeitnow_data = fetch_arbeitnow()
+        # ---- Arbeitnow ----
+        arbeitnow_response = api_results.get("arbeitnow") or {}
+        arbeitnow_data = arbeitnow_response.get("data", [])
         save_raw_data(arbeitnow_data, "arbeitnow")
         all_jobs += process_arbeitnow(arbeitnow_data, match_keywords, KEYWORDS)
         logger.info("Arbeitnow processed")
 
+        # ---- Muse (still synchronous due to pagination) ----
         muse_raw_jobs = fetch_muse_paginated(MUSE_MAX_PAGES)
         save_raw_data(muse_raw_jobs, "muse")
         all_jobs += process_muse(muse_raw_jobs, match_keywords, KEYWORDS)
@@ -237,7 +249,7 @@ def main():
     after_count = len(unique_jobs)
 
     logger.info(f"Deduplicated jobs: {before_count - after_count} duplicates removed")
-    
+
     save_output(unique_jobs, OUTPUT_FORMAT, DAYS_FILTER)
 
 
