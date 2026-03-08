@@ -12,6 +12,9 @@ from job_aggregator.sources.muse import fetch_muse_paginated, process_muse
 from job_aggregator.utils import print_summary
 from job_aggregator.utils import print_skill_summary
 from job_aggregator.utils import extract_skills
+from job_aggregator.utils import save_raw_data
+from job_aggregator.utils import load_raw_data
+from job_aggregator.utils import save_processed_dataset
 
 
 # ===============================
@@ -51,11 +54,18 @@ def match_keywords(text, keywords):
 def deduplicate(jobs):
     seen = set()
     unique = []
+
     for job in jobs:
-        url = job.get("URL")
-        if url and url not in seen:
-            seen.add(url)
+
+        key = (
+            job.get("Source"),
+            job.get("URL")
+        )
+
+        if key not in seen and job.get("URL"):
+            seen.add(key)
             unique.append(job)
+
     return unique
 
 
@@ -118,6 +128,8 @@ def save_output(jobs, output_format, days_filter):
         # -----------------------------
         print_summary(df)
         print_skill_summary(df)
+
+        save_processed_dataset(df)
 
     # -----------------------------
     # Export
@@ -182,24 +194,52 @@ def main():
 
     all_jobs = []
 
-    remoteok_data = fetch_remoteok()
-    all_jobs += process_remoteok(remoteok_data, match_keywords, KEYWORDS)
-    logger.info("RemoteOK processed")
+    if args.use_raw:
 
-    remotive_data = fetch_remotive()
-    all_jobs += process_remotive(remotive_data, match_keywords, KEYWORDS)
-    logger.info("Remotive processed")
+        print("\nLoading raw data instead of calling APIs...")
 
-    arbeitnow_data = fetch_arbeitnow()
-    all_jobs += process_arbeitnow(arbeitnow_data, match_keywords, KEYWORDS)
-    logger.info("Arbeitnow processed")
+        remoteok_data = load_raw_data("remoteok")
+        all_jobs += process_remoteok(remoteok_data, match_keywords, KEYWORDS)
 
-    muse_raw_jobs = fetch_muse_paginated(MUSE_MAX_PAGES)
-    all_jobs += process_muse(muse_raw_jobs, match_keywords, KEYWORDS)
-    logger.info("The Muse processed")
+        remotive_data = load_raw_data("remotive")
+        all_jobs += process_remotive(remotive_data, match_keywords, KEYWORDS)
+
+        arbeitnow_data = load_raw_data("arbeitnow")
+        all_jobs += process_arbeitnow(arbeitnow_data, match_keywords, KEYWORDS)
+
+        muse_raw_jobs = load_raw_data("muse")
+        all_jobs += process_muse(muse_raw_jobs, match_keywords, KEYWORDS)
+
+    else:
+
+        remoteok_data = fetch_remoteok()
+        save_raw_data(remoteok_data, "remoteok")
+        all_jobs += process_remoteok(remoteok_data, match_keywords, KEYWORDS)
+        logger.info("RemoteOK processed")
+
+        remotive_data = fetch_remotive()
+        save_raw_data(remotive_data, "remotive")
+        all_jobs += process_remotive(remotive_data, match_keywords, KEYWORDS)
+        logger.info("Remotive processed")
+
+        arbeitnow_data = fetch_arbeitnow()
+        save_raw_data(arbeitnow_data, "arbeitnow")
+        all_jobs += process_arbeitnow(arbeitnow_data, match_keywords, KEYWORDS)
+        logger.info("Arbeitnow processed")
+
+        muse_raw_jobs = fetch_muse_paginated(MUSE_MAX_PAGES)
+        save_raw_data(muse_raw_jobs, "muse")
+        all_jobs += process_muse(muse_raw_jobs, match_keywords, KEYWORDS)
+        logger.info("The Muse processed")
+
+    before_count = len(all_jobs)
 
     unique_jobs = deduplicate(all_jobs)
 
+    after_count = len(unique_jobs)
+
+    logger.info(f"Deduplicated jobs: {before_count - after_count} duplicates removed")
+    
     save_output(unique_jobs, OUTPUT_FORMAT, DAYS_FILTER)
 
 

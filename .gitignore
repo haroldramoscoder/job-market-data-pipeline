@@ -16,6 +16,9 @@ output/
 *.log
 *.csv
 
+data/
+*.json
+
 # OS
 .DS_Store
 Thumbs.db

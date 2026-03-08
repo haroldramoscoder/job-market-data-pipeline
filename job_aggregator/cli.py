@@ -50,4 +50,10 @@ def parse_arguments():
         help="Optional log file path"
     )
 
+    parser.add_argument(
+        "--use-raw",
+        action="store_true",
+        help="Process previously saved raw data instead of calling APIs"
+    )
+
     return parser.parse_args()

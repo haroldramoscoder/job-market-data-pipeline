@@ -2,6 +2,9 @@ import pandas as pd
 from collections import Counter
 import re
 from job_aggregator.skills import SKILLS
+import json
+import os
+from datetime import datetime
 
 def print_summary(df):
     if df.empty:
@@ -100,3 +103,79 @@ def print_skill_summary(df):
             continue
 
         print(f"{skill}: {count}")
+
+def save_raw_data(data, source_name):
+    """
+    Save raw API responses to the data/raw directory.
+    """
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+    directory = f"data/raw/{source_name}"
+    os.makedirs(directory, exist_ok=True)
+
+    filename = f"{directory}/{timestamp}.json"
+
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+    return filename
+
+def load_raw_data(source_name):
+    """
+    Load all raw JSON files for a source.
+    """
+
+    directory = f"data/raw/{source_name}"
+
+    if not os.path.exists(directory):
+        return []
+
+    all_records = []
+
+    for file in os.listdir(directory):
+        if file.endswith(".json"):
+
+            filepath = os.path.join(directory, file)
+
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+                if isinstance(data, list):
+                    all_records.extend(data)
+                else:
+                    all_records.append(data)
+
+    return all_records
+
+def save_processed_dataset(df):
+    """
+    Save cleaned dataset to the processed data layer with versioning.
+    """
+
+    import os
+    from datetime import datetime
+
+    directory = "data/processed"
+    os.makedirs(directory, exist_ok=True)
+
+    # Create date-based dataset version
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+    filepath = os.path.join(directory, f"jobs_{timestamp}.parquet")
+
+    # Normalize Tags column for parquet compatibility
+    if "Tags" in df.columns:
+
+        def normalize_tags(tags):
+            if isinstance(tags, list):
+                return "|".join(tags)
+            elif tags:
+                return str(tags)
+            return None
+
+        df["Tags"] = df["Tags"].apply(normalize_tags)
+
+    df.to_parquet(filepath, index=False)
+
+    print(f"\nProcessed dataset saved to {filepath}")
