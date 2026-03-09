@@ -1,0 +1,11 @@
+sources:
+  - name: remoteok
+    endpoint: https://remoteok.com/api
+    headers:
+      User-Agent: Mozilla/5.0
+
+  - name: remotive
+    endpoint: https://remotive.com/api/remote-jobs
+
+  - name: arbeitnow
+    endpoint: https://www.arbeitnow.com/api/job-board-api

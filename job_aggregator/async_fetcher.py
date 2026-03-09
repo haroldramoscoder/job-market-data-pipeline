@@ -2,6 +2,7 @@ import aiohttp
 import asyncio
 import logging
 from tenacity import retry, stop_after_attempt, wait_exponential
+from job_aggregator.config_loader import load_sources_config
 
 
 logger = logging.getLogger(__name__)
@@ -54,20 +55,28 @@ async def fetch_all(requests):
     return results
 
 async def fetch_job_sources():
-    """
-    Fetch all job APIs concurrently.
-    """
 
-    requests = [
-        ("https://remoteok.com/api", {"User-Agent": "Mozilla/5.0"}),
-        ("https://remotive.com/api/remote-jobs", None),
-        ("https://www.arbeitnow.com/api/job-board-api", None)
-    ]
+    sources = load_sources_config()
+
+    requests = []
+
+    for source in sources:
+
+        endpoint = source["endpoint"]
+        headers = source.get("headers")
+
+        requests.append((endpoint, headers))
 
     results = await fetch_all(requests)
 
-    return {
-        "remoteok": results[0] if not isinstance(results[0], Exception) else None,
-        "remotive": results[1] if not isinstance(results[1], Exception) else None,
-        "arbeitnow": results[2] if not isinstance(results[2], Exception) else None,
-    }
+    source_results = {}
+
+    for i, source in enumerate(sources):
+
+        result = results[i]
+
+        source_results[source["name"]] = (
+            result if not isinstance(result, Exception) else None
+        )
+
+    return source_results
