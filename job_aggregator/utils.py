@@ -1,7 +1,7 @@
 import pandas as pd
 from collections import Counter
 import re
-from job_aggregator.skills import SKILLS
+from job_aggregator.skills import SKILLS, SKILL_CATEGORIES
 import json
 import os
 from datetime import datetime
@@ -252,3 +252,54 @@ def generate_job_id(row):
     base_string = f"{row['Title']}_{row['Company']}_{row['Location']}_{row['Source']}"
 
     return hashlib.md5(base_string.encode()).hexdigest()
+
+def analyze_skill_categories(df):
+
+    category_counter = Counter()
+
+    skill_counts = analyze_skills(df)
+
+    for skill, count in skill_counts.items():
+
+        for category, skills in SKILL_CATEGORIES.items():
+
+            if skill in skills:
+                category_counter[category] += count
+
+    return category_counter
+
+def print_skill_categories(df):
+
+    category_counts = analyze_skill_categories(df)
+
+    if not category_counts:
+        return
+
+    print("\nSkill Demand by Category")
+    print("-" * 30)
+
+    for category, count in category_counts.most_common():
+
+        print(f"{category}: {count}")
+
+def skill_trends_last_30_days(df):
+
+    cutoff = pd.Timestamp.now() - pd.Timedelta(days=30)
+
+    recent_jobs = df[df["Date Posted"] >= cutoff]
+
+    skill_counts = analyze_skills(recent_jobs)
+
+    return skill_counts
+
+def print_skill_trends(df):
+
+    trends = skill_trends_last_30_days(df)
+
+    print("\nTop Skills Last 30 Days")
+    print("-" * 30)
+
+    for skill, count in trends.most_common(10):
+
+        print(f"{skill}: {count}")
+

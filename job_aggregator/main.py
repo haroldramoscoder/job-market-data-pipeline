@@ -9,7 +9,7 @@ from job_aggregator.sources.remoteok import fetch_remoteok, process_remoteok
 from job_aggregator.sources.remotive import fetch_remotive, process_remotive
 from job_aggregator.sources.arbeitnow import fetch_arbeitnow, process_arbeitnow
 from job_aggregator.sources.muse import fetch_muse_paginated, process_muse
-from job_aggregator.utils import print_summary, print_skill_summary, extract_skills, save_raw_data, load_raw_data, save_processed_dataset, validate_dataset, update_warehouse, cleanup_old_files, generate_job_id
+from job_aggregator.utils import print_summary, print_skill_summary, extract_skills, save_raw_data, load_raw_data, save_processed_dataset, validate_dataset, update_warehouse, cleanup_old_files, generate_job_id, print_skill_categories, print_skill_trends
 from job_aggregator.cleaning import clean_jobs_dataframe
 import asyncio
 from job_aggregator.async_fetcher import fetch_job_sources
@@ -113,6 +113,47 @@ def save_output(jobs, output_format, days_filter):
         df["Skills"] = df.apply(detect_skills, axis=1)
 
         # -----------------------------
+        # Skill count
+        # -----------------------------
+        def count_skills(skill_string):
+
+            if not skill_string:
+                return 0
+
+            return len(skill_string.split("|"))
+
+        df["Skill_Count"] = df["Skills"].apply(count_skills)
+
+
+        # -----------------------------
+        # Primary skill category
+        # -----------------------------
+        from job_aggregator.skills import SKILL_CATEGORIES
+
+        def get_primary_category(skill_string):
+
+            if not skill_string:
+                return None
+
+            skills = skill_string.split("|")
+
+            category_scores = {}
+
+            for skill in skills:
+
+                for category, category_skills in SKILL_CATEGORIES.items():
+
+                    if skill in category_skills:
+                        category_scores[category] = category_scores.get(category, 0) + 1
+
+            if not category_scores:
+                return None
+
+            return max(category_scores, key=category_scores.get)
+
+        df["Primary_Skill_Category"] = df["Skills"].apply(get_primary_category)
+
+        # -----------------------------
         # Date cleaning
         # -----------------------------
         df["Date Posted"] = pd.to_datetime(
@@ -137,6 +178,8 @@ def save_output(jobs, output_format, days_filter):
         # -----------------------------
         print_summary(df)
         print_skill_summary(df)
+        print_skill_categories(df)
+        print_skill_trends(df)
 
         save_processed_dataset(df)
         update_warehouse(df)
