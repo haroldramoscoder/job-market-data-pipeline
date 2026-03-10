@@ -1,6 +1,7 @@
 version: "3.9"
 
 services:
+
   job-pipeline:
     build: .
     container_name: job_pipeline
@@ -8,3 +9,34 @@ services:
       - ./data:/app/data
       - ./output:/app/output
     command: job-aggregator --keywords data
+
+  airflow-webserver:
+    image: apache/airflow:2.8.1
+    container_name: airflow_webserver
+    depends_on:
+      - airflow-scheduler
+    environment:
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./:/opt/airflow/project
+      - airflow-db:/opt/airflow
+    ports:
+      - "8080:8080"
+    command: bash -c "pip install openpyxl && airflow webserver"
+
+  airflow-scheduler:
+    image: apache/airflow:2.8.1
+    container_name: airflow_scheduler
+    environment:
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./:/opt/airflow/project
+      - airflow-db:/opt/airflow
+    command: bash -c "pip install openpyxl && airflow scheduler"
+
+volumes:
+  airflow-db:
