@@ -9,11 +9,10 @@ from job_aggregator.sources.remoteok import fetch_remoteok, process_remoteok
 from job_aggregator.sources.remotive import fetch_remotive, process_remotive
 from job_aggregator.sources.arbeitnow import fetch_arbeitnow, process_arbeitnow
 from job_aggregator.sources.muse import fetch_muse_paginated, process_muse
-from job_aggregator.utils import print_summary, print_skill_summary, extract_skills, save_raw_data, load_raw_data, save_processed_dataset
+from job_aggregator.utils import print_summary, print_skill_summary, extract_skills, save_raw_data, load_raw_data, save_processed_dataset, validate_dataset, update_warehouse, cleanup_old_files, generate_job_id
 from job_aggregator.cleaning import clean_jobs_dataframe
 import asyncio
 from job_aggregator.async_fetcher import fetch_job_sources
-
 
 # ===============================
 # Keyword Expansion Presets
@@ -68,12 +67,21 @@ def deduplicate(jobs):
 
 
 def save_output(jobs, output_format, days_filter):
+
     os.makedirs("output", exist_ok=True)
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    today = datetime.now().strftime("%Y-%m-%d")
 
     df = pd.DataFrame(jobs)
 
     df = clean_jobs_dataframe(df)
+    df = validate_dataset(df)
+    df["job_id"] = df.apply(generate_job_id, axis=1)
+    # Final deduplication using stable identifier
+    before = len(df)
+    df = df.drop_duplicates(subset=["job_id"])
+    after = len(df)
+
+    print(f"Job ID dedup removed {before-after} duplicates")
 
     if not df.empty:
 
@@ -130,20 +138,21 @@ def save_output(jobs, output_format, days_filter):
         print_skill_summary(df)
 
         save_processed_dataset(df)
+        update_warehouse(df)
 
     # -----------------------------
     # Export
     # -----------------------------
     if output_format == "excel":
-        filename = f"output/jobs_{timestamp}.xlsx"
+        filename = f"output/jobs_{today}.xlsx"
         df.to_excel(filename, index=False)
 
     elif output_format == "csv":
-        filename = f"output/jobs_{timestamp}.csv"
+        filename = f"output/jobs_{today}.csv"
         df.to_csv(filename, index=False)
 
     elif output_format == "json":
-        filename = f"output/jobs_{timestamp}.json"
+        filename = f"output/jobs_{today}.json"
         df.to_json(filename, orient="records", indent=2)
 
     print(f"\nSaved {len(df)} jobs to {filename}")
@@ -251,6 +260,13 @@ def main():
     logger.info(f"Deduplicated jobs: {before_count - after_count} duplicates removed")
 
     save_output(unique_jobs, OUTPUT_FORMAT, DAYS_FILTER)
+     
+    cleanup_old_files("data/raw/remoteok", 90)
+    cleanup_old_files("data/raw/remotive", 90)
+    cleanup_old_files("data/raw/arbeitnow", 90)
+    cleanup_old_files("data/raw/muse", 90)
+    cleanup_old_files("data/processed", 30)
+    cleanup_old_files("output", 7)
 
 
 if __name__ == "__main__":

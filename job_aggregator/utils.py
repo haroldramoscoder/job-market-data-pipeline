@@ -5,6 +5,8 @@ from job_aggregator.skills import SKILLS
 import json
 import os
 from datetime import datetime
+from pathlib import Path
+import hashlib
 
 def print_summary(df):
     if df.empty:
@@ -104,22 +106,19 @@ def print_skill_summary(df):
 
         print(f"{skill}: {count}")
 
-def save_raw_data(data, source_name):
-    """
-    Save raw API responses to the data/raw directory.
-    """
+def save_raw_data(data, source):
 
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    today = datetime.now().strftime("%Y-%m-%d")
 
-    directory = f"data/raw/{source_name}"
+    directory = f"data/raw/{source}"
     os.makedirs(directory, exist_ok=True)
 
-    filename = f"{directory}/{timestamp}.json"
+    filepath = os.path.join(directory, f"{today}.json")
 
-    with open(filename, "w", encoding="utf-8") as f:
+    with open(filepath, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
-    return filename
+    print(f"Raw data saved: {filepath}")
 
 def load_raw_data(source_name):
     """
@@ -153,16 +152,13 @@ def save_processed_dataset(df):
     Save cleaned dataset to the processed data layer with versioning.
     """
 
-    import os
-    from datetime import datetime
-
     directory = "data/processed"
     os.makedirs(directory, exist_ok=True)
 
     # Create date-based dataset version
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    today = datetime.now().strftime("%Y-%m-%d")
 
-    filepath = os.path.join(directory, f"jobs_{timestamp}.parquet")
+    filepath = os.path.join(directory, f"jobs_{today}.parquet")
 
     # Normalize Tags column for parquet compatibility
     if "Tags" in df.columns:
@@ -179,3 +175,80 @@ def save_processed_dataset(df):
     df.to_parquet(filepath, index=False)
 
     print(f"\nProcessed dataset saved to {filepath}")
+
+def update_warehouse(df):
+
+    warehouse_path = "data/warehouse/jobs.parquet"
+
+    # If warehouse already exists, load it
+    if os.path.exists(warehouse_path):
+        existing_df = pd.read_parquet(warehouse_path)
+
+        combined_df = pd.concat([existing_df, df], ignore_index=True)
+
+        # remove duplicates based on job URL
+        combined_df = combined_df.drop_duplicates(subset=["URL"])
+
+    else:
+        combined_df = df
+
+    combined_df.to_parquet(warehouse_path, index=False)
+
+    print(f"\nWarehouse updated: {warehouse_path}")
+
+def validate_dataset(df):
+
+    initial_rows = len(df)
+
+    missing_title = df["Title"].isna().sum()
+    missing_company = df["Company"].isna().sum()
+    missing_url = df["URL"].isna().sum()
+    missing_description = df["Description"].isna().sum()
+
+    print("\nDATA QUALITY REPORT")
+    print("-------------------")
+    print(f"Rows before validation: {initial_rows}")
+    print(f"Missing title: {missing_title}")
+    print(f"Missing company: {missing_company}")
+    print(f"Missing URL: {missing_url}")
+    print(f"Missing description: {missing_description}")
+
+    df = df.dropna(subset=["Title", "Company", "URL"])
+
+    final_rows = len(df)
+
+    print(f"Rows after validation: {final_rows}")
+
+    return df
+
+def cleanup_old_files(directory, limit):
+
+    path = Path(directory)
+
+    if not path.exists():
+        return
+
+    files = sorted(
+        [f for f in path.iterdir() if f.is_file()],
+        key=lambda x: x.stat().st_mtime
+    )
+
+    file_count = len(files)
+
+    if file_count <= limit:
+        print(f"[Cleanup] {directory}: {file_count} files (within limit {limit})")
+        return
+
+    files_to_delete = files[: file_count - limit]
+
+    print(f"[Cleanup] {directory}: removing {len(files_to_delete)} old files")
+
+    for file in files_to_delete:
+        print(f"[Cleanup] Deleting: {file.name}")
+        file.unlink()
+
+def generate_job_id(row):
+
+    base_string = f"{row['Title']}_{row['Company']}_{row['Location']}_{row['Source']}"
+
+    return hashlib.md5(base_string.encode()).hexdigest()
