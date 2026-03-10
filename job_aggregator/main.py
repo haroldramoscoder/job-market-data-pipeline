@@ -13,6 +13,7 @@ from job_aggregator.utils import print_summary, print_skill_summary, extract_ski
 from job_aggregator.cleaning import clean_jobs_dataframe
 import asyncio
 from job_aggregator.async_fetcher import fetch_job_sources
+import time
 
 # ===============================
 # Keyword Expansion Presets
@@ -156,6 +157,7 @@ def save_output(jobs, output_format, days_filter):
         df.to_json(filename, orient="records", indent=2)
 
     print(f"\nSaved {len(df)} jobs to {filename}")
+    return len(df)
 
 
 # ===============================
@@ -163,6 +165,7 @@ def save_output(jobs, output_format, days_filter):
 # ===============================
 
 def main():
+    pipeline_start = time.time()
     args = parse_arguments()
 
     USER_KEYWORDS = args.keywords
@@ -222,8 +225,12 @@ def main():
     else:
 
         print("\nFetching APIs asynchronously...")
+        fetch_start = time.time()
 
         api_results = asyncio.run(fetch_job_sources())
+
+        fetch_time = round(time.time() - fetch_start, 2)
+        logger.info(f"API fetch completed in {fetch_time} seconds")
 
         # ---- RemoteOK ----
         remoteok_data = api_results.get("remoteok") or []
@@ -259,8 +266,20 @@ def main():
 
     logger.info(f"Deduplicated jobs: {before_count - after_count} duplicates removed")
 
-    save_output(unique_jobs, OUTPUT_FORMAT, DAYS_FILTER)
-     
+    try:
+        final_count = save_output(unique_jobs, OUTPUT_FORMAT, DAYS_FILTER)
+    except Exception as e:
+        logger.exception("Pipeline failed during output stage")
+        raise
+    
+    pipeline_time = round(time.time() - pipeline_start, 2)
+
+    print("\nPIPELINE RUN SUMMARY")
+    print("-------------------")
+    print(f"Total jobs collected: {before_count}")
+    print(f"Jobs after deduplication: {final_count}")
+    print(f"Pipeline runtime: {pipeline_time} seconds")
+
     cleanup_old_files("data/raw/remoteok", 90)
     cleanup_old_files("data/raw/remotive", 90)
     cleanup_old_files("data/raw/arbeitnow", 90)
