@@ -340,3 +340,97 @@ def export_ml_dataset(df):
     ml_df.to_parquet(filepath, index=False)
 
     print(f"\nML dataset exported: {filepath}")
+
+def log_pipeline_run(runtime, jobs_before, jobs_after):
+
+    directory = "data/pipeline_runs"
+    os.makedirs(directory, exist_ok=True)
+
+    filepath = os.path.join(directory, "pipeline_runs.parquet")
+
+    run_data = pd.DataFrame([{
+        "run_timestamp": datetime.now(),
+        "runtime_seconds": runtime,
+        "jobs_collected": jobs_before,
+        "jobs_after_dedup": jobs_after
+    }])
+
+    if os.path.exists(filepath):
+
+        existing = pd.read_parquet(filepath)
+        run_data = pd.concat([existing, run_data], ignore_index=True)
+
+    run_data.to_parquet(filepath, index=False)
+
+    print("Pipeline run metadata logged.")
+
+def export_skill_trends(df):
+
+    directory = "data/analytics"
+    os.makedirs(directory, exist_ok=True)
+
+    filepath = os.path.join(directory, "skill_trends.parquet")
+
+    skills = []
+
+    today = datetime.now().date()
+
+    for skill_string in df["Skills"].dropna():
+
+        for skill in skill_string.split("|"):
+
+            skills.append({"date": today, "skill": skill})
+
+    trends_df = pd.DataFrame(skills)
+
+    trends_df = trends_df.groupby(["date", "skill"]).size().reset_index(name="count")
+
+    if os.path.exists(filepath):
+
+        existing = pd.read_parquet(filepath)
+        trends_df = pd.concat([existing, trends_df], ignore_index=True)
+
+    trends_df.to_parquet(filepath, index=False)
+
+    print("Skill trends dataset updated.")
+
+def validate_schema(df):
+
+    required_columns = [
+        "Title",
+        "Company",
+        "Location",
+        "Date Posted",
+        "URL",
+        "Description"
+    ]
+
+    missing = [col for col in required_columns if col not in df.columns]
+
+    if missing:
+        raise ValueError(f"Dataset schema error: missing columns {missing}")
+
+    print("Dataset schema validation passed.")
+
+def detect_job_changes(df):
+
+    warehouse_path = "data/warehouse/jobs.parquet"
+
+    if not os.path.exists(warehouse_path):
+        print("\nJOB CHANGE REPORT")
+        print("-----------------")
+        print("First pipeline run — no previous warehouse to compare.")
+        return
+
+    previous = pd.read_parquet(warehouse_path)
+
+    previous_ids = set(previous["job_id"])
+    current_ids = set(df["job_id"])
+
+    new_jobs = current_ids - previous_ids
+    removed_jobs = previous_ids - current_ids
+
+    print("\nJOB CHANGE REPORT")
+    print("-----------------")
+    print(f"New jobs detected: {len(new_jobs)}")
+    print(f"Jobs removed since last run: {len(removed_jobs)}")
