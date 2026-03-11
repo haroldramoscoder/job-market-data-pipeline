@@ -303,3 +303,40 @@ def print_skill_trends(df):
 
         print(f"{skill}: {count}")
 
+def export_ml_dataset(df):
+
+    directory = "data/ml"
+    os.makedirs(directory, exist_ok=True)
+
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    filepath = os.path.join(directory, f"job_market_dataset_{today}.parquet")
+
+    ml_columns = [
+        "job_id",
+        "Title",
+        "Company",
+        "Location",
+        "Date Posted",
+        "Source",
+        "Description",
+        "Skills"
+    ]
+
+    ml_df = df[ml_columns].copy()
+
+    # Normalize column names for ML pipelines
+    ml_df.columns = [
+        "job_id",
+        "title",
+        "company",
+        "location",
+        "date_posted",
+        "source",
+        "description",
+        "skills"
+    ]
+
+    ml_df.to_parquet(filepath, index=False)
+
+    print(f"\nML dataset exported: {filepath}")

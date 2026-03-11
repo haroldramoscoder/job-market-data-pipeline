@@ -9,7 +9,7 @@ from job_aggregator.sources.remoteok import fetch_remoteok, process_remoteok
 from job_aggregator.sources.remotive import fetch_remotive, process_remotive
 from job_aggregator.sources.arbeitnow import fetch_arbeitnow, process_arbeitnow
 from job_aggregator.sources.muse import fetch_muse_paginated, process_muse
-from job_aggregator.utils import print_summary, print_skill_summary, extract_skills, save_raw_data, load_raw_data, save_processed_dataset, validate_dataset, update_warehouse, cleanup_old_files, generate_job_id, print_skill_categories, print_skill_trends
+from job_aggregator.utils import print_summary, print_skill_summary, extract_skills, save_raw_data, load_raw_data, save_processed_dataset, validate_dataset, update_warehouse, cleanup_old_files, generate_job_id, print_skill_categories, print_skill_trends, export_ml_dataset
 from job_aggregator.cleaning import clean_jobs_dataframe
 import asyncio
 from job_aggregator.async_fetcher import fetch_job_sources
@@ -183,6 +183,7 @@ def save_output(jobs, output_format, days_filter):
 
         save_processed_dataset(df)
         update_warehouse(df)
+        export_ml_dataset(df)
 
     # -----------------------------
     # Export
