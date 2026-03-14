@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 import hashlib
+import logging
 
 def print_summary(df):
     if df.empty:
@@ -118,7 +119,7 @@ def save_raw_data(data, source):
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
-    print(f"Raw data saved: {filepath}")
+    logging.debug(f"Raw data saved: {filepath}")
 
 def load_raw_data(source_name):
     """
@@ -174,7 +175,7 @@ def save_processed_dataset(df):
 
     df.to_parquet(filepath, index=False)
 
-    print(f"\nProcessed dataset saved to {filepath}")
+    logging.debug(f"Processed dataset saved: {filepath}")
 
 def update_warehouse(df):
 
@@ -194,7 +195,7 @@ def update_warehouse(df):
 
     combined_df.to_parquet(warehouse_path, index=False)
 
-    print(f"\nWarehouse updated: {warehouse_path}")
+    logging.debug(f"Warehouse updated: {warehouse_path}")
 
 def validate_dataset(df):
 
@@ -205,19 +206,21 @@ def validate_dataset(df):
     missing_url = df["URL"].isna().sum()
     missing_description = df["Description"].isna().sum()
 
-    print("\nDATA QUALITY REPORT")
-    print("-------------------")
-    print(f"Rows before validation: {initial_rows}")
-    print(f"Missing title: {missing_title}")
-    print(f"Missing company: {missing_company}")
-    print(f"Missing URL: {missing_url}")
-    print(f"Missing description: {missing_description}")
+    if logging.getLogger().isEnabledFor(logging.DEBUG):
+
+        print("\nDATA QUALITY REPORT")
+        print("-------------------")
+        print(f"Rows before validation: {initial_rows}")
+        print(f"Missing title: {missing_title}")
+        print(f"Missing company: {missing_company}")
+        print(f"Missing URL: {missing_url}")
+        print(f"Missing description: {missing_description}")
 
     df = df.dropna(subset=["Title", "Company", "URL"])
 
     final_rows = len(df)
 
-    print(f"Rows after validation: {final_rows}")
+    logging.debug(f"Rows after validation: {final_rows}")
 
     return df
 
@@ -236,20 +239,20 @@ def cleanup_old_files(directory, limit):
     file_count = len(files)
 
     if file_count <= limit:
-        print(f"[Cleanup] {directory}: {file_count} files (within limit {limit})")
+        logging.debug(f"[Cleanup] {directory}: {file_count} files (within limit {limit})")
         return
 
     files_to_delete = files[: file_count - limit]
 
-    print(f"[Cleanup] {directory}: removing {len(files_to_delete)} old files")
+    logging.debug(f"[Cleanup] {directory}: removing {len(files_to_delete)} old files")
 
     for file in files_to_delete:
-        print(f"[Cleanup] Deleting: {file.name}")
+        logging.debug(f"[Cleanup] Deleting: {file.name}")
         file.unlink()
 
 def generate_job_id(row):
 
-    base_string = f"{row['Title']}_{row['Company']}_{row['Location']}_{row['Source']}"
+    base_string = f"{row.get('Title','')}_{row.get('Company','')}_{row.get('Location','')}_{row.get('Source','')}"
 
     return hashlib.md5(base_string.encode()).hexdigest()
 
@@ -300,7 +303,8 @@ def print_skill_trends(df):
     print("-" * 30)
 
     for skill, count in trends.most_common(10):
-
+        if count < 2:
+            continue
         print(f"{skill}: {count}")
 
 def export_ml_dataset(df):
@@ -339,7 +343,7 @@ def export_ml_dataset(df):
 
     ml_df.to_parquet(filepath, index=False)
 
-    print(f"\nML dataset exported: {filepath}")
+    logging.debug(f"ML dataset exported: {filepath}")
 
 def log_pipeline_run(runtime, jobs_before, jobs_after):
 
@@ -362,7 +366,7 @@ def log_pipeline_run(runtime, jobs_before, jobs_after):
 
     run_data.to_parquet(filepath, index=False)
 
-    print("Pipeline run metadata logged.")
+    logging.debug("Pipeline run metadata logged.")
 
 def export_skill_trends(df):
 
@@ -392,7 +396,7 @@ def export_skill_trends(df):
 
     trends_df.to_parquet(filepath, index=False)
 
-    print("Skill trends dataset updated.")
+    logging.debug("Skill trends dataset updated.")
 
 def validate_schema(df):
 
@@ -410,14 +414,14 @@ def validate_schema(df):
     if missing:
         raise ValueError(f"Dataset schema error: missing columns {missing}")
 
-    print("Dataset schema validation passed.")
+    logging.debug("Dataset schema validation passed.")
 
 def detect_job_changes(df):
 
     warehouse_path = "data/warehouse/jobs.parquet"
 
     if not os.path.exists(warehouse_path):
-        print("\nJOB CHANGE REPORT")
+        print("\nJOB UPDATE REPORT")
         print("-----------------")
         print("First pipeline run — no previous warehouse to compare.")
         return
@@ -430,7 +434,7 @@ def detect_job_changes(df):
     new_jobs = current_ids - previous_ids
     removed_jobs = previous_ids - current_ids
 
-    print("\nJOB CHANGE REPORT")
+    print("\nJOB UPDATE REPORT")
     print("-----------------")
     print(f"New jobs detected: {len(new_jobs)}")
     print(f"Jobs removed since last run: {len(removed_jobs)}")

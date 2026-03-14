@@ -44,6 +44,18 @@ def parse_arguments():
     )
 
     parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Show minimal pipeline output"
+    )
+
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Show internal pipeline diagnostics"
+    )
+
+    parser.add_argument(
         "--logfile",
         type=str,
         default=None,

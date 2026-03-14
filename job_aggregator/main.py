@@ -69,7 +69,7 @@ def deduplicate(jobs):
     return unique
 
 
-def save_output(jobs, output_format, days_filter):
+def save_output(jobs, output_format, days_filter, args):
 
     os.makedirs("output", exist_ok=True)
     today = datetime.now().strftime("%Y-%m-%d")
@@ -86,7 +86,7 @@ def save_output(jobs, output_format, days_filter):
 
     validate_schema(df)
 
-    print(f"Job ID dedup removed {before-after} duplicates")
+    duplicates_removed = before - after
 
     if not df.empty:
 
@@ -170,7 +170,9 @@ def save_output(jobs, output_format, days_filter):
         if days_filter:
             cutoff = datetime.now() - timedelta(days=days_filter)
             df = df[df["Date Posted"] >= cutoff]
-            print(f"\nFiltered to last {days_filter} days.")
+            print("\nFILTER")
+            print("-"*30)
+            print(f"Showing jobs from last {days_filter} days")
 
         # -----------------------------
         # Sorting
@@ -180,10 +182,11 @@ def save_output(jobs, output_format, days_filter):
         # -----------------------------
         # Console summaries
         # -----------------------------
-        print_summary(df)
-        print_skill_summary(df)
-        print_skill_categories(df)
-        print_skill_trends(df)
+        if not args.quiet:
+            print_summary(df)
+            print_skill_summary(df)
+            print_skill_categories(df)
+            print_skill_trends(df)
 
         save_processed_dataset(df)
         detect_job_changes(df)
@@ -206,8 +209,15 @@ def save_output(jobs, output_format, days_filter):
         filename = f"output/jobs_{today}.json"
         df.to_json(filename, orient="records", indent=2)
 
-    print(f"\nSaved {len(df)} jobs to {filename}")
-    return len(df)
+    print("\nDATASETS GENERATED")
+    print("-"*30)
+    print(f"processed dataset → data/processed/jobs_{today}.parquet")
+    print("warehouse dataset → data/warehouse/jobs.parquet")
+    print(f"ml dataset → data/ml/job_market_dataset_{today}.parquet")
+    print("skill trends → data/analytics/skill_trends.parquet")
+
+    print(f"\nReport saved → {filename}")
+    return len(df), duplicates_removed
 
 
 # ===============================
@@ -225,7 +235,12 @@ def main():
     OUTPUT_FORMAT = args.format
 
     # Logging setup
-    log_level = logging.DEBUG if args.verbose else logging.INFO
+    if args.debug:
+        log_level = logging.DEBUG
+    elif args.verbose:
+        log_level = logging.INFO
+    else:
+        log_level = logging.WARNING
 
     logger = logging.getLogger()
     logger.setLevel(log_level)
@@ -249,10 +264,15 @@ def main():
     # Expand keywords
     KEYWORDS = expand_keywords(USER_KEYWORDS, STRICT_MODE)
 
-    print(f"\nUser keywords: {USER_KEYWORDS}")
-    print(f"Expanded keywords: {KEYWORDS}")
-    if DAYS_FILTER:
-        print(f"Freshness filter: last {DAYS_FILTER} days")
+    if not args.quiet:
+        print("\n" + "="*50)
+        print("JOB MARKET DATA PIPELINE")
+        print("="*50)
+
+        print("\nKEYWORDS")
+        print("-"*30)
+        print(f"User keywords: {USER_KEYWORDS}")
+        print(f"Expanded keywords: {KEYWORDS}")
 
     all_jobs = []
 
@@ -274,7 +294,10 @@ def main():
 
     else:
 
-        print("\nFetching APIs asynchronously...")
+        if not args.quiet:
+            print("\nPIPELINE START")
+            print("------------------------------")
+            print("Fetching job sources...")
         fetch_start = time.time()
 
         api_results = asyncio.run(fetch_job_sources())
@@ -317,18 +340,20 @@ def main():
     logger.info(f"Deduplicated jobs: {before_count - after_count} duplicates removed")
 
     try:
-        final_count = save_output(unique_jobs, OUTPUT_FORMAT, DAYS_FILTER)
+        final_count, duplicates_removed = save_output(unique_jobs, OUTPUT_FORMAT, DAYS_FILTER, args)
     except Exception as e:
         logger.exception("Pipeline failed during output stage")
         raise
     
     pipeline_time = round(time.time() - pipeline_start, 2)
 
-    print("\nPIPELINE RUN SUMMARY")
-    print("-------------------")
-    print(f"Total jobs collected: {before_count}")
-    print(f"Jobs after deduplication: {final_count}")
-    print(f"Pipeline runtime: {pipeline_time} seconds")
+    if not args.quiet:
+        print("\nPIPELINE RUN SUMMARY")
+        print("-"*30)
+        print(f"Jobs collected: {before_count}")
+        print(f"Jobs after deduplication: {final_count}")
+        print(f"Duplicates removed: {duplicates_removed}")
+        print(f"Runtime: {pipeline_time} seconds")
 
     log_pipeline_run(pipeline_time, before_count, final_count)
 
@@ -338,6 +363,10 @@ def main():
     cleanup_old_files("data/raw/muse", 90)
     cleanup_old_files("data/processed", 30)
     cleanup_old_files("output", 7)
+
+    print("\nPIPELINE STATUS")
+    print("-"*30)
+    print("Pipeline completed successfully")
 
 
 if __name__ == "__main__":
