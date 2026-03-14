@@ -225,6 +225,14 @@ def save_output(jobs, output_format, days_filter, args):
 # ===============================
 
 def main():
+
+    os.makedirs("data/raw", exist_ok=True)
+    os.makedirs("data/processed", exist_ok=True)
+    os.makedirs("data/warehouse", exist_ok=True)
+    os.makedirs("data/ml", exist_ok=True)
+    os.makedirs("data/analytics", exist_ok=True)
+    os.makedirs("output", exist_ok=True)
+    
     pipeline_start = time.time()
     args = parse_arguments()
 

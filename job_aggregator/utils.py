@@ -179,17 +179,15 @@ def save_processed_dataset(df):
 
 def update_warehouse(df):
 
-    warehouse_path = "data/warehouse/jobs.parquet"
+    directory = "data/warehouse"
+    os.makedirs(directory, exist_ok=True)
 
-    # If warehouse already exists, load it
+    warehouse_path = os.path.join(directory, "jobs.parquet")
+
     if os.path.exists(warehouse_path):
         existing_df = pd.read_parquet(warehouse_path)
-
         combined_df = pd.concat([existing_df, df], ignore_index=True)
-
-        # remove duplicates based on job URL
         combined_df = combined_df.drop_duplicates(subset=["URL"])
-
     else:
         combined_df = df
 

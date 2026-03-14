@@ -5,6 +5,7 @@ services:
   job-pipeline:
     build: .
     container_name: job_pipeline
+    restart: unless-stopped
     volumes:
       - ./data:/app/data
       - ./output:/app/output
@@ -13,6 +14,7 @@ services:
   airflow-webserver:
     image: apache/airflow:2.8.1
     container_name: airflow_webserver
+    restart: unless-stopped
     depends_on:
       - airflow-scheduler
     environment:
@@ -29,6 +31,7 @@ services:
   airflow-scheduler:
     image: apache/airflow:2.8.1
     container_name: airflow_scheduler
+    restart: unless-stopped
     environment:
       AIRFLOW__CORE__EXECUTOR: SequentialExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
