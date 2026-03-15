@@ -176,7 +176,7 @@ skills
 Clone the repository:
 
 ```
-git clone https://github.com/haroldramoscoder/job-listing-automation.git
+git clone https://github.com/haroldramoscoder/job-market-data-pipeline.git
 cd job-listing-automation
 ```
 
@@ -301,7 +301,7 @@ Pipeline steps:
 
 ## Project Structure
 ```
-job-listing-automation
+job-market-data-pipeline
 │
 ├── job_aggregator
 │   ├── sources
